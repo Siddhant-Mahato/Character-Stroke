@@ -282,7 +282,6 @@
 
 
 
-
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 import numpy as np
@@ -290,12 +289,13 @@ import json
 import os
 import joblib
 
-# ========== CONFIG ==========
+# ========== CONFIG ========== #
 NORMALIZATION_BASE = 400
 MAX_POINTS = 100
+MIN_POINTS = 80
 CANVAS_SIZE = 400
 
-# ========== FUNCTIONS ==========
+# ========== FUNCTIONS ========== #
 
 def preprocess_stroke_data(points):
     norm_points = []
@@ -319,7 +319,7 @@ def extract_points_from_canvas(json_data):
                         points.append((x, y, pen))
     return points
 
-# ========== UI ==========
+# ========== UI ========== #
 
 st.title("🖋 Hindi Character Stroke Prediction")
 
@@ -366,21 +366,35 @@ if mode == "✏️ Draw New":
     if st.button("💾 Save Drawing"):
         if len(points) > 0:
             total_points = len(points)
-            if total_points > MAX_POINTS:
-                indices = np.linspace(0, total_points - 1, MAX_POINTS, dtype=int)
-                reduced_points = [points[i] for i in indices]
-                reduced_points[0] = (reduced_points[0][0], reduced_points[0][1], 0)
+
+            if total_points < MIN_POINTS:
+                st.warning(f"⚠️ Draw more! Minimum {MIN_POINTS} points required to save.")
             else:
-                reduced_points = points.copy()
+                # Downsample if more than MAX_POINTS
+                if total_points > MAX_POINTS:
+                    indices = np.linspace(0, total_points - 1, MAX_POINTS, dtype=int)
+                    reduced_points = [points[i] for i in indices]
+                else:
+                    reduced_points = points.copy()
 
-            dataset.append([[int(x), int(y), int(p)] for (x, y, p) in reduced_points])
+                # Pad if less than MAX_POINTS
+                while len(reduced_points) < MAX_POINTS:
+                    reduced_points.append((0, 0, 0))
 
-            try:
-                with open("saved_strokes.json", "w") as f:
-                    json.dump(dataset, f)
-                st.success(f"✅ Drawing saved! Total saved strokes: {len(dataset)}")
-            except Exception as e:
-                st.error(f"❌ Error saving drawing: {str(e)}")
+                reduced_points[0] = (
+                    reduced_points[0][0],
+                    reduced_points[0][1],
+                    0,
+                )  # First point pen=0
+
+                dataset.append([[int(x), int(y), int(p)] for (x, y, p) in reduced_points])
+
+                try:
+                    with open("saved_strokes.json", "w") as f:
+                        json.dump(dataset, f)
+                    st.success(f"✅ Drawing saved! Total saved strokes: {len(dataset)}")
+                except Exception as e:
+                    st.error(f"❌ Error saving drawing: {str(e)}")
 
 elif mode == "🔁 Replay Last":
     if dataset:
@@ -408,4 +422,3 @@ elif mode == "🔁 Replay Last":
         )
     else:
         st.warning("⚠️ No saved drawing to replay.")
-
