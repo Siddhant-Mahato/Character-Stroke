@@ -1,0 +1,2 @@
+from sklearn.externals import joblib  # or simply `import joblib`
+joblib.dump(model, "hindi_digit_model.pkl")
