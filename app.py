@@ -727,83 +727,84 @@
 
 
 
+
 import streamlit as st
-from streamlit_drawable_canvas import st_canvas
 import numpy as np
-from PIL import Image, ImageDraw
-import joblib
+import cv2
 from utils import preprocess_strokes, stroke_to_image
+import joblib
 
-st.set_page_config(page_title="Hindi Digit Recognizer", layout="centered")
-st.title("Hindi Numeral Recognition (Stroke + Image Based)")
+st.set_page_config(page_title="Hindi Digit Recognition", layout="centered")
+st.title("✍️ Hindi Digit Recognition from Strokes")
 
-# Canvas for handwriting input
-st.subheader("Draw a Hindi numeral below")
+if 'strokes' not in st.session_state:
+    st.session_state.strokes = []
+if 'current_stroke' not in st.session_state:
+    st.session_state.current_stroke = []
 
-canvas_result = st_canvas(
-    fill_color="rgba(0, 0, 0, 1)",  # Black ink
-    stroke_width=8,
-    stroke_color="#000000",
-    background_color="#FFFFFF",
-    update_streamlit=True,
-    height=280,
-    width=280,
-    drawing_mode="freedraw",
-    key="canvas",
-)
+@st.cache_resource
+def load_model():
+    try:
+        model_dict = joblib.load("hindi_digit_model.pkl")
+        return model_dict["model"]
+    except Exception as e:
+        st.error(f"Model could not be loaded: {e}")
+        return None
 
-if canvas_result.image_data is not None:
-    img = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
-else:
-    img = None
+model = load_model()
 
-# Process strokes
-if canvas_result.json_data is not None:
-    objects = canvas_result.json_data["objects"]
-    strokes = []
-    for obj in objects:
-        if obj["type"] == "path":
-            path = obj["path"]
-            stroke = []
-            for p in path:
-                if p[0] == "M" or p[0] == "L":
-                    stroke.append((p[1], p[2]))
-            strokes.append(stroke)
-else:
-    strokes = []
+canvas = st.empty()
 
-# Button: Predict
+canvas_size = 256
+canvas_img = np.ones((canvas_size, canvas_size, 3), dtype=np.uint8) * 255
+
+canvas_placeholder = st.empty()
+
+st.write("Draw a Hindi digit using your mouse (or touchpad on touchscreen devices).")
+
+is_drawing = st.checkbox("Enable Drawing Mode")
+
+if is_drawing:
+    from streamlit_drawable_canvas import st_canvas
+
+    result = st_canvas(
+        fill_color="rgba(0, 0, 0, 0)",  # Transparent fill
+        stroke_width=3,
+        stroke_color="#000000",
+        background_color="#FFFFFF",
+        update_streamlit=True,
+        height=canvas_size,
+        width=canvas_size,
+        drawing_mode="freedraw",
+        key="canvas",
+    )
+
+    if result.json_data is not None:
+        from streamlit_drawable_canvas.utils import parse_json
+        strokes_raw = parse_json(result.json_data)
+        strokes = [
+            [(int(x), int(y)) for x, y in line] for line in strokes_raw if line
+        ]
+
+        st.session_state.strokes = strokes
+
 if st.button("Predict"):
-    if not strokes:
-        st.warning("Please draw a numeral first.")
+    if not st.session_state.strokes:
+        st.warning("Please draw something first.")
     else:
-        try:
-            model = joblib.load("hindi_digit_model.pkl")
-        except Exception as e:
-            st.error(f"Model could not be loaded: {e}")
-            st.stop()
-
-        # Stroke preprocessing
-        vector = preprocess_strokes(strokes)
-
-        # Prediction using stroke vector
-        stroke_pred = model.predict([vector])[0]
-
-        # Image generation and prediction
-        if img is not None:
-            gray = img.convert("L").resize((28, 28))
-            gray_np = np.array(gray).astype(np.float32)
-            gray_np = 255 - gray_np  # Invert
-            gray_np /= 255.0
-            flat = gray_np.flatten()
-            image_pred = model.predict([flat])[0]
-
-            st.image(gray, caption="Resized Input Image (28x28)", width=140)
-            st.success(f"Stroke-based Prediction: {stroke_pred}")
-            st.success(f"Image-based Prediction: {image_pred}")
+        processed_strokes = preprocess_strokes(st.session_state.strokes)
+        if processed_strokes is None:
+            st.error("Could not process strokes.")
         else:
-            st.success(f"Stroke-based Prediction: {stroke_pred}")
+            img = stroke_to_image(processed_strokes)
+            img_resized = cv2.resize(img, (8, 8))
+            img_flattened = (16 - (img_resized / 16)).astype(np.float32).reshape(1, -1)
 
-# Reset
-if st.button("Clear"):
-    st.experimental_rerun()
+            prediction = model.predict(img_flattened)[0]
+            st.success(f"Predicted Hindi Digit: {prediction}")
+            st.image(img, caption="Input Image", width=128)
+
+if st.button("Clear Canvas"):
+    st.session_state.strokes = []
+    st.session_state.current_stroke = []
+    st.rerun()
