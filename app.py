@@ -724,30 +724,23 @@
 #     st.session_state.session_data = []
 #     st.success("✅ All session strokes cleared.")
 
-
-
-
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 import numpy as np
 import json
-import joblib
 from PIL import Image
-from utils import strokes_to_image, prepare_image_for_model
+import joblib
+from utils import process_stroke_data, strokes_to_image, load_model, predict_character
 
 # Config
 CANVAS_SIZE = 400
 MAX_POINTS = 100
 MIN_POINTS = 70
 
-# Load the trained model
-@st.cache_resource
-def load_model():
-    return joblib.load("hindi_digit_model.pkl")
-
-model = load_model()
-
 st.title("✍️ Hindi Numeral Stroke Recorder (Session-based)")
+
+# Load the model
+model = load_model("hindi_digit_model.pkl")
 
 # Session-specific data (no shared file)
 if "session_data" not in st.session_state:
@@ -765,7 +758,7 @@ canvas_result = st_canvas(
     key="canvas",
 )
 
-# Extract stroke points
+# Extract stroke points from canvas
 def extract_points(json_data):
     points = []
     if json_data and "objects" in json_data:
@@ -801,14 +794,7 @@ if st.button("💾 Save Drawing"):
     else:
         processed = process_points(points)
         st.session_state.session_data.append(processed)
-
-        # Image and prediction
-        img = strokes_to_image(processed, size=(100, 100))
-        st.image(img, caption="🖼️ Stroke Image", width=100)
-
-        input_array = prepare_image_for_model(img)
-        prediction = model.predict(input_array)[0]
-        st.success(f"🧠 Predicted Hindi Digit: `{prediction}`")
+        st.success("✅ Drawing saved to session!")
 
 # View stroke data by index
 if st.checkbox("📋 Show Saved Stroke Data by Index"):
@@ -831,8 +817,27 @@ if st.checkbox("📑 Show All Saved Stroke Data (As One List)"):
     else:
         st.info("No saved strokes yet.")
 
+# Predict character from the drawing
+if st.button("🔮 Predict Character"):
+    if len(st.session_state.session_data) > 0:
+        # Get the most recent drawing
+        recent_stroke_data = st.session_state.session_data[-1]
+        
+        # Predict character
+        predicted_character = predict_character(recent_stroke_data, model)
+
+        # Convert stroke data to image
+        image = strokes_to_image(recent_stroke_data)
+
+        # Display the image
+        st.image(image, caption="Predicted Character Image", use_column_width=True)
+
+        # Display the predicted character
+        st.success(f"Predicted Character: {predicted_character}")
+    else:
+        st.warning("No drawing to predict from!")
+
 # Clear button
 if st.button("🧹 Clear This Session's Strokes"):
     st.session_state.session_data = []
     st.success("✅ All session strokes cleared.")
-
