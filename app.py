@@ -730,99 +730,80 @@
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 import numpy as np
+from PIL import Image, ImageDraw
 import joblib
-from PIL import Image
-from utils import process_stroke_data, strokes_to_image, load_model, predict_character
+from utils import preprocess_strokes, stroke_to_image
 
-# Constants
-CANVAS_SIZE = 400
-MAX_POINTS = 100
-MIN_POINTS = 70
+st.set_page_config(page_title="Hindi Digit Recognizer", layout="centered")
+st.title("Hindi Numeral Recognition (Stroke + Image Based)")
 
-# Title
-st.set_page_config(page_title="Hindi Numeral Stroke Recorder", layout="centered")
-st.title("✍️ Hindi Numeral Stroke Recorder (Session-based)")
+# Canvas for handwriting input
+st.subheader("Draw a Hindi numeral below")
 
-# Load model
-model = load_model("hindi_digit_model.pkl")
-
-# Initialize session data
-if "session_data" not in st.session_state:
-    st.session_state.session_data = []
-
-# Draw canvas
 canvas_result = st_canvas(
-    fill_color="rgba(0, 0, 0, 1)",
-    stroke_width=4,
+    fill_color="rgba(0, 0, 0, 1)",  # Black ink
+    stroke_width=8,
     stroke_color="#000000",
     background_color="#FFFFFF",
-    width=CANVAS_SIZE,
-    height=CANVAS_SIZE,
+    update_streamlit=True,
+    height=280,
+    width=280,
     drawing_mode="freedraw",
     key="canvas",
 )
 
-# Function to extract stroke points
-def extract_points(json_data):
-    points = []
-    if json_data and "objects" in json_data:
-        for obj in json_data["objects"]:
-            if obj["type"] == "path":
-                for cmd in obj["path"]:
-                    if len(cmd) >= 3:
-                        x, y = int(cmd[1]), int(cmd[2])
-                        p = 0 if len(points) == 0 else 1
-                        points.append([x, y, p])
-    return points
+if canvas_result.image_data is not None:
+    img = Image.fromarray((canvas_result.image_data[:, :, :3]).astype(np.uint8))
+else:
+    img = None
 
-# Display total saved drawings
-st.markdown(
-    f"📦 **Total Saved Drawings (This Session)**: `{len(st.session_state.session_data)}`"
-)
+# Process strokes
+if canvas_result.json_data is not None:
+    objects = canvas_result.json_data["objects"]
+    strokes = []
+    for obj in objects:
+        if obj["type"] == "path":
+            path = obj["path"]
+            stroke = []
+            for p in path:
+                if p[0] == "M" or p[0] == "L":
+                    stroke.append((p[1], p[2]))
+            strokes.append(stroke)
+else:
+    strokes = []
 
-# Save Drawing
-if st.button("💾 Save Drawing"):
-    points = extract_points(canvas_result.json_data)
-    if len(points) < MIN_POINTS:
-        st.warning(f"⚠️ Too few points! Minimum {MIN_POINTS} required.")
+# Button: Predict
+if st.button("Predict"):
+    if not strokes:
+        st.warning("Please draw a numeral first.")
     else:
-        processed = process_stroke_data(points, max_points=MAX_POINTS)
-        st.session_state.session_data.append(processed)
-        st.success("✅ Drawing saved to session!")
+        try:
+            model = joblib.load("hindi_digit_model.pkl")
+        except Exception as e:
+            st.error(f"Model could not be loaded: {e}")
+            st.stop()
 
-# View saved strokes
-if st.checkbox("📋 Show Saved Stroke Data by Index"):
-    if st.session_state.session_data:
-        index = st.number_input(
-            "Select Drawing Index",
-            min_value=0,
-            max_value=len(st.session_state.session_data) - 1,
-            step=1,
-            value=0,
-        )
-        st.json(st.session_state.session_data[index])
-    else:
-        st.info("No saved strokes yet.")
+        # Stroke preprocessing
+        vector = preprocess_strokes(strokes)
 
-# Show all saved data
-if st.checkbox("📑 Show All Saved Stroke Data (As One List)"):
-    if st.session_state.session_data:
-        st.json(st.session_state.session_data)
-    else:
-        st.info("No saved strokes yet.")
+        # Prediction using stroke vector
+        stroke_pred = model.predict([vector])[0]
 
-# Prediction
-if st.button("🔮 Predict Character"):
-    if len(st.session_state.session_data) > 0:
-        recent_stroke = st.session_state.session_data[-1]
-        pred = predict_character(recent_stroke, model)
-        image = strokes_to_image(recent_stroke)
-        st.image(image, caption="Generated Image", use_column_width=True)
-        st.success(f"Predicted Hindi Digit: {pred}")
-    else:
-        st.warning("No drawing available for prediction.")
+        # Image generation and prediction
+        if img is not None:
+            gray = img.convert("L").resize((28, 28))
+            gray_np = np.array(gray).astype(np.float32)
+            gray_np = 255 - gray_np  # Invert
+            gray_np /= 255.0
+            flat = gray_np.flatten()
+            image_pred = model.predict([flat])[0]
 
-# Clear session data
-if st.button("🧹 Clear This Session's Strokes"):
-    st.session_state.session_data = []
-    st.success("✅ All session strokes cleared.")
+            st.image(gray, caption="Resized Input Image (28x28)", width=140)
+            st.success(f"Stroke-based Prediction: {stroke_pred}")
+            st.success(f"Image-based Prediction: {image_pred}")
+        else:
+            st.success(f"Stroke-based Prediction: {stroke_pred}")
+
+# Reset
+if st.button("Clear"):
+    st.experimental_rerun()
