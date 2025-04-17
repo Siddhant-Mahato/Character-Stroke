@@ -1,7 +1,6 @@
-streamlit
-streamlit-drawable-canvas
+streamlit==1.32.0
+scikit-learn==1.3.0
 numpy
-opencv-python-headless
-Pillow
-scikit-learn
+opencv-python
+streamlit-drawable-canvas
 joblib
