@@ -542,93 +542,93 @@
 # -------------------------------------------------------------------------------------------------------------------( Session Based without All Stroke )
 
 
-import streamlit as st
-from streamlit_drawable_canvas import st_canvas
-import numpy as np
-import json
+# import streamlit as st
+# from streamlit_drawable_canvas import st_canvas
+# import numpy as np
+# import json
 
-# Config
-CANVAS_SIZE = 400
-MAX_POINTS = 100
-MIN_POINTS = 70
+# # Config
+# CANVAS_SIZE = 400
+# MAX_POINTS = 100
+# MIN_POINTS = 70
 
-st.title("✍️ Hindi Numeral Stroke Recorder (Session-based)")
+# st.title("✍️ Hindi Numeral Stroke Recorder (Session-based)")
 
-# Session-specific data (no shared file)
-if "session_data" not in st.session_state:
-    st.session_state.session_data = []
+# # Session-specific data (no shared file)
+# if "session_data" not in st.session_state:
+#     st.session_state.session_data = []
 
-# Drawing canvas
-canvas_result = st_canvas(
-    fill_color="rgba(0,0,0,1)",
-    stroke_width=4,
-    stroke_color="#000000",
-    background_color="#FFFFFF",
-    width=CANVAS_SIZE,
-    height=CANVAS_SIZE,
-    drawing_mode="freedraw",
-    key="canvas",
-)
-
-
-# Extract stroke points
-def extract_points(json_data):
-    points = []
-    if json_data and "objects" in json_data:
-        for obj in json_data["objects"]:
-            if obj["type"] == "path":
-                for cmd in obj["path"]:
-                    if len(cmd) >= 3:
-                        x, y = int(cmd[1]), int(cmd[2])
-                        p = 0 if len(points) == 0 else 1
-                        points.append([x, y, p])
-    return points
+# # Drawing canvas
+# canvas_result = st_canvas(
+#     fill_color="rgba(0,0,0,1)",
+#     stroke_width=4,
+#     stroke_color="#000000",
+#     background_color="#FFFFFF",
+#     width=CANVAS_SIZE,
+#     height=CANVAS_SIZE,
+#     drawing_mode="freedraw",
+#     key="canvas",
+# )
 
 
-# Downsample or pad to exactly MAX_POINTS
-def process_points(points):
-    total = len(points)
-    if total > MAX_POINTS:
-        indices = np.linspace(0, total - 1, MAX_POINTS, dtype=int)
-        points = [points[i] for i in indices]
-    elif total < MAX_POINTS:
-        points += [[0, 0, 0]] * (MAX_POINTS - total)
-    return points
+# # Extract stroke points
+# def extract_points(json_data):
+#     points = []
+#     if json_data and "objects" in json_data:
+#         for obj in json_data["objects"]:
+#             if obj["type"] == "path":
+#                 for cmd in obj["path"]:
+#                     if len(cmd) >= 3:
+#                         x, y = int(cmd[1]), int(cmd[2])
+#                         p = 0 if len(points) == 0 else 1
+#                         points.append([x, y, p])
+#     return points
 
 
-# Display total saved drawings
-st.markdown(
-    f"📦 **Total Saved Drawings (This Session)**: `{len(st.session_state.session_data)}`"
-)
+# # Downsample or pad to exactly MAX_POINTS
+# def process_points(points):
+#     total = len(points)
+#     if total > MAX_POINTS:
+#         indices = np.linspace(0, total - 1, MAX_POINTS, dtype=int)
+#         points = [points[i] for i in indices]
+#     elif total < MAX_POINTS:
+#         points += [[0, 0, 0]] * (MAX_POINTS - total)
+#     return points
 
-# Save button
-if st.button("💾 Save Drawing"):
-    points = extract_points(canvas_result.json_data)
-    if len(points) < MIN_POINTS:
-        st.warning(f"⚠️ Too few points! Minimum {MIN_POINTS} required.")
-    else:
-        processed = process_points(points)
-        st.session_state.session_data.append(processed)
-        st.success("✅ Drawing saved to session!")
 
-# View stroke data by index
-if st.checkbox("📋 Show Saved Stroke Data by Index"):
-    if st.session_state.session_data:
-        selected_index = st.number_input(
-            "Select Drawing Index",
-            min_value=0,
-            max_value=len(st.session_state.session_data) - 1,
-            step=1,
-            value=len(st.session_state.session_data) - 1,
-        )
-        st.json(st.session_state.session_data[selected_index])
-    else:
-        st.info("No saved strokes yet.")
+# # Display total saved drawings
+# st.markdown(
+#     f"📦 **Total Saved Drawings (This Session)**: `{len(st.session_state.session_data)}`"
+# )
 
-# Clear button
-if st.button("🧹 Clear This Session's Strokes"):
-    st.session_state.session_data = []
-    st.success("✅ All session strokes cleared.")
+# # Save button
+# if st.button("💾 Save Drawing"):
+#     points = extract_points(canvas_result.json_data)
+#     if len(points) < MIN_POINTS:
+#         st.warning(f"⚠️ Too few points! Minimum {MIN_POINTS} required.")
+#     else:
+#         processed = process_points(points)
+#         st.session_state.session_data.append(processed)
+#         st.success("✅ Drawing saved to session!")
+
+# # View stroke data by index
+# if st.checkbox("📋 Show Saved Stroke Data by Index"):
+#     if st.session_state.session_data:
+#         selected_index = st.number_input(
+#             "Select Drawing Index",
+#             min_value=0,
+#             max_value=len(st.session_state.session_data) - 1,
+#             step=1,
+#             value=len(st.session_state.session_data) - 1,
+#         )
+#         st.json(st.session_state.session_data[selected_index])
+#     else:
+#         st.info("No saved strokes yet.")
+
+# # Clear button
+# if st.button("🧹 Clear This Session's Strokes"):
+#     st.session_state.session_data = []
+#     st.success("✅ All session strokes cleared.")
 
 ---------------------------------------------------------------------------------------------( Before Prediction )
 
