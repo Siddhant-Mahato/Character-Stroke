@@ -630,7 +630,7 @@
 #     st.session_state.session_data = []
 #     st.success("✅ All session strokes cleared.")
 
----------------------------------------------------------------------------------------------( Before Prediction )
+# ---------------------------------------------------------------------------------------------( Before Prediction )
 
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
