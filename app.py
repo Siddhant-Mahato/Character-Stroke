@@ -631,8 +631,6 @@
 #     st.success("✅ All session strokes cleared.")
 
 
-
-
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 import numpy as np
@@ -699,7 +697,7 @@ if st.button("💾 Save Drawing"):
         st.session_state.session_data.append(processed)
         st.success("✅ Drawing saved to session!")
 
-# Show stroke data by index
+# View stroke data by index
 if st.checkbox("📋 Show Saved Stroke Data by Index"):
     if st.session_state.session_data:
         selected_index = st.number_input(
@@ -713,12 +711,10 @@ if st.checkbox("📋 Show Saved Stroke Data by Index"):
     else:
         st.info("No saved strokes yet.")
 
-# 🔄 Show All Saved Strokes
-if st.checkbox("📑 Show All Saved Stroke Data"):
+# 🔄 Show All Saved Strokes in one big list
+if st.checkbox("📑 Show All Saved Stroke Data (As One List)"):
     if st.session_state.session_data:
-        for i, data in enumerate(st.session_state.session_data):
-            with st.expander(f"Stroke #{i}"):
-                st.json(data)
+        st.json(st.session_state.session_data)
     else:
         st.info("No saved strokes yet.")
 
@@ -726,5 +722,3 @@ if st.checkbox("📑 Show All Saved Stroke Data"):
 if st.button("🧹 Clear This Session's Strokes"):
     st.session_state.session_data = []
     st.success("✅ All session strokes cleared.")
-
-
