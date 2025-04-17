@@ -1,30 +1,18 @@
-# Import necessary libraries
-import numpy as np
-from sklearn import svm
-from sklearn.model_selection import train_test_split
-from sklearn.metrics import accuracy_score
+# train_and_save_model.py
 import joblib
+from sklearn import svm
+from sklearn.datasets import load_digits
+from sklearn.model_selection import train_test_split
 
-# Example dataset: X_train is your features, y_train is the target labels (Hindi digits)
-# This is just a mock-up; replace this with actual data you have.
-# Let's assume we are training on features like stroke coordinates or pixel data.
+# Load sample digits dataset (similar to Hindi numeral style)
+digits = load_digits()
+X, y = digits.data, digits.target
 
-# Example features (let's pretend these are stroke data representations)
-X_train = np.random.rand(100, 10)  # 100 samples, 10 features each (you'll use real stroke data here)
-y_train = np.random.randint(0, 10, 100)  # 100 labels, for 10 Hindi digits (0-9)
+# Train SVM
+clf = svm.SVC(kernel='linear', probability=True)
+clf.fit(X, y)
 
-# Split the dataset into training and testing (you can skip this part if you have real data)
-X_train, X_test, y_train, y_test = train_test_split(X_train, y_train, test_size=0.2, random_state=42)
+# Save model using modern joblib (no deprecated imports)
+joblib.dump(clf, "hindi_digit_model.pkl")
 
-# Create and train the SVM model
-model = svm.SVC(kernel='linear')  # You can experiment with different kernels like 'poly' or 'rbf'
-model.fit(X_train, y_train)
-
-# Evaluate the model
-y_pred = model.predict(X_test)
-print(f"Accuracy: {accuracy_score(y_test, y_pred)}")
-
-# Save the trained model using joblib
-joblib.dump(model, "hindi_digit_model.pkl")
-
-print("Model saved successfully!")
+print("✅ Model saved as hindi_digit_model.pkl")
