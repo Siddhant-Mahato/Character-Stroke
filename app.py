@@ -630,16 +630,122 @@
 #     st.session_state.session_data = []
 #     st.success("✅ All session strokes cleared.")
 
+# ---------------------------------------------------------------------------------------------( Before Prediction )
+
+# import streamlit as st
+# from streamlit_drawable_canvas import st_canvas
+# import numpy as np
+# import json
+
+# # Config
+# CANVAS_SIZE = 400
+# MAX_POINTS = 100
+# MIN_POINTS = 70
+
+# st.title("✍️ Hindi Numeral Stroke Recorder (Session-based)")
+
+# # Session-specific data (no shared file)
+# if "session_data" not in st.session_state:
+#     st.session_state.session_data = []
+
+# # Drawing canvas
+# canvas_result = st_canvas(
+#     fill_color="rgba(0,0,0,1)",
+#     stroke_width=4,
+#     stroke_color="#000000",
+#     background_color="#FFFFFF",
+#     width=CANVAS_SIZE,
+#     height=CANVAS_SIZE,
+#     drawing_mode="freedraw",
+#     key="canvas",
+# )
+
+# # Extract stroke points
+# def extract_points(json_data):
+#     points = []
+#     if json_data and "objects" in json_data:
+#         for obj in json_data["objects"]:
+#             if obj["type"] == "path":
+#                 for cmd in obj["path"]:
+#                     if len(cmd) >= 3:
+#                         x, y = int(cmd[1]), int(cmd[2])
+#                         p = 0 if len(points) == 0 else 1
+#                         points.append([x, y, p])
+#     return points
+
+# # Downsample or pad to exactly MAX_POINTS
+# def process_points(points):
+#     total = len(points)
+#     if total > MAX_POINTS:
+#         indices = np.linspace(0, total - 1, MAX_POINTS, dtype=int)
+#         points = [points[i] for i in indices]
+#     elif total < MAX_POINTS:
+#         points += [[0, 0, 0]] * (MAX_POINTS - total)
+#     return points
+
+# # Display total saved drawings
+# st.markdown(
+#     f"📦 **Total Saved Drawings (This Session)**: `{len(st.session_state.session_data)}`"
+# )
+
+# # Save button
+# if st.button("💾 Save Drawing"):
+#     points = extract_points(canvas_result.json_data)
+#     if len(points) < MIN_POINTS:
+#         st.warning(f"⚠️ Too few points! Minimum {MIN_POINTS} required.")
+#     else:
+#         processed = process_points(points)
+#         st.session_state.session_data.append(processed)
+#         st.success("✅ Drawing saved to session!")
+
+# # View stroke data by index
+# if st.checkbox("📋 Show Saved Stroke Data by Index"):
+#     if st.session_state.session_data:
+#         selected_index = st.number_input(
+#             "Select Drawing Index",
+#             min_value=0,
+#             max_value=len(st.session_state.session_data) - 1,
+#             step=1,
+#             value=len(st.session_state.session_data) - 1,
+#         )
+#         st.json(st.session_state.session_data[selected_index])
+#     else:
+#         st.info("No saved strokes yet.")
+
+# # 🔄 Show All Saved Strokes in one big list
+# if st.checkbox("📑 Show All Saved Stroke Data (As One List)"):
+#     if st.session_state.session_data:
+#         st.json(st.session_state.session_data)
+#     else:
+#         st.info("No saved strokes yet.")
+
+# # Clear button
+# if st.button("🧹 Clear This Session's Strokes"):
+#     st.session_state.session_data = []
+#     st.success("✅ All session strokes cleared.")
+
+
+
 
 import streamlit as st
 from streamlit_drawable_canvas import st_canvas
 import numpy as np
 import json
+import joblib
+from PIL import Image
+from utils import strokes_to_image, prepare_image_for_model
 
 # Config
 CANVAS_SIZE = 400
 MAX_POINTS = 100
 MIN_POINTS = 70
+
+# Load the trained model
+@st.cache_resource
+def load_model():
+    return joblib.load("hindi_digit_model.pkl")
+
+model = load_model()
 
 st.title("✍️ Hindi Numeral Stroke Recorder (Session-based)")
 
@@ -695,7 +801,14 @@ if st.button("💾 Save Drawing"):
     else:
         processed = process_points(points)
         st.session_state.session_data.append(processed)
-        st.success("✅ Drawing saved to session!")
+
+        # Image and prediction
+        img = strokes_to_image(processed, size=(100, 100))
+        st.image(img, caption="🖼️ Stroke Image", width=100)
+
+        input_array = prepare_image_for_model(img)
+        prediction = model.predict(input_array)[0]
+        st.success(f"🧠 Predicted Hindi Digit: `{prediction}`")
 
 # View stroke data by index
 if st.checkbox("📋 Show Saved Stroke Data by Index"):
@@ -722,3 +835,4 @@ if st.checkbox("📑 Show All Saved Stroke Data (As One List)"):
 if st.button("🧹 Clear This Session's Strokes"):
     st.session_state.session_data = []
     st.success("✅ All session strokes cleared.")
+
