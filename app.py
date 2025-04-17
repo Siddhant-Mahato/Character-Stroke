@@ -737,10 +737,9 @@ import joblib
 st.set_page_config(page_title="Hindi Digit Recognition", layout="centered")
 st.title("✍️ Hindi Digit Recognition from Strokes")
 
+# Initialize session state
 if 'strokes' not in st.session_state:
     st.session_state.strokes = []
-if 'current_stroke' not in st.session_state:
-    st.session_state.current_stroke = []
 
 @st.cache_resource
 def load_model():
@@ -753,44 +752,44 @@ def load_model():
 
 model = load_model()
 
-canvas = st.empty()
-
 canvas_size = 256
-canvas_img = np.ones((canvas_size, canvas_size, 3), dtype=np.uint8) * 255
 
-canvas_placeholder = st.empty()
+st.write("Draw a Hindi digit using your mouse or touch device.")
 
-st.write("Draw a Hindi digit using your mouse (or touchpad on touchscreen devices).")
+from streamlit_drawable_canvas import st_canvas
 
-is_drawing = st.checkbox("Enable Drawing Mode")
+# Canvas component
+result = st_canvas(
+    fill_color="rgba(0, 0, 0, 0)",  # Transparent fill
+    stroke_width=3,
+    stroke_color="#000000",
+    background_color="#FFFFFF",
+    update_streamlit=True,
+    height=canvas_size,
+    width=canvas_size,
+    drawing_mode="freedraw",
+    key="canvas",
+)
 
-if is_drawing:
-    from streamlit_drawable_canvas import st_canvas
+# Extract strokes from canvas JSON
+if result.json_data is not None:
+    # Raw strokes data
+    objects = result.json_data.get("objects", [])
+    strokes = []
+    for obj in objects:
+        if obj["type"] == "path":
+            path = obj["path"]
+            points = [(int(x), int(y)) for [_, x, y, *_] in path]
+            strokes.append(points)
 
-    result = st_canvas(
-        fill_color="rgba(0, 0, 0, 0)",  # Transparent fill
-        stroke_width=3,
-        stroke_color="#000000",
-        background_color="#FFFFFF",
-        update_streamlit=True,
-        height=canvas_size,
-        width=canvas_size,
-        drawing_mode="freedraw",
-        key="canvas",
-    )
+    st.session_state.strokes = strokes
 
-    if result.json_data is not None:
-        from streamlit_drawable_canvas.utils import parse_json
-        strokes_raw = parse_json(result.json_data)
-        strokes = [
-            [(int(x), int(y)) for x, y in line] for line in strokes_raw if line
-        ]
-
-        st.session_state.strokes = strokes
-
+# Predict button
 if st.button("Predict"):
     if not st.session_state.strokes:
         st.warning("Please draw something first.")
+    elif model is None:
+        st.error("Model is not loaded.")
     else:
         processed_strokes = preprocess_strokes(st.session_state.strokes)
         if processed_strokes is None:
@@ -804,7 +803,7 @@ if st.button("Predict"):
             st.success(f"Predicted Hindi Digit: {prediction}")
             st.image(img, caption="Input Image", width=128)
 
+# Clear canvas
 if st.button("Clear Canvas"):
     st.session_state.strokes = []
-    st.session_state.current_stroke = []
     st.rerun()
