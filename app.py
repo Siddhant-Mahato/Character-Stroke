@@ -16,6 +16,7 @@
 # CANVAS_SIZE = 400
 # DRAW_DELAY = 5  # milliseconds per point when replaying
 
+
 # # ========== FUNCTIONS ==========
 
 # def preprocess_stroke_data(points):
