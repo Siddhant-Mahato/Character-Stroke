@@ -19,6 +19,7 @@
 
 # # ========== FUNCTIONS ==========
 
+
 # def preprocess_stroke_data(points):
 #     norm_points = []
 #     for x, y, p in points:
