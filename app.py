@@ -48,7 +48,7 @@
 #     return points
 
 
-# # ========== UI ==========
+# # ========== UI ===========
 
 # st.title("🖋 Hindi Character Stroke Prediction")
 
